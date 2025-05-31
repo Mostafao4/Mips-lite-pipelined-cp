@@ -6,9 +6,9 @@
 //DEFINE Array of main memory 2d array of size 2048*32
 int main_memory[2048][32];
 // Define arrays as global variables
-int R0[32], R1[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}, R2[32], R3[32], R4[32], R5[32], R6[32], R7[32];
-int R8[32], R9[32], R10[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1}, R11[32], R12[32], R13[32], R14[32], R15[32];
-int R16[32], R17[32], R18[32], R19[32], R20[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0}, R21[32], R22[32], R23[32];
+int R0[32], R1[32], R2[32], R3[32], R4[32], R5[32], R6[32], R7[32];
+int R8[32], R9[32], R10[32], R11[32], R12[32], R13[32], R14[32], R15[32];
+int R16[32], R17[32], R18[32], R19[32], R20[32], R21[32], R22[32], R23[32];
 int R24[32], R25[32], R26[32], R27[32], R28[32], R29[32], R30[32], R31[32];
 int PC[32], IR[32]; int countClock=1; int halt=0; int count=0;int isJumping=0; int tempPC[32];int jumpNo=0;
 
@@ -97,19 +97,85 @@ const Instruction INSTRUCTIONS[] = {
 
 // Convert decimal to binary string
 void decimalToBinary(int decimal, char* binary, int bits) {
-    for (int i = bits - 1; i >= 0; i--) {
-        binary[i] = (decimal & 1) + '0';
-        decimal >>= 1;
+    // Initialize binary string with zeros
+    for(int i = 0; i < bits; i++) {
+        binary[i] = '0';
     }
     binary[bits] = '\0';
+
+    if (decimal >= 0) {
+        // Handle positive numbers directly
+        unsigned int value = decimal;
+        for(int i = bits-1; i >= 0; i--) {
+            binary[i] = (value & 1) + '0';
+            value >>= 1;
+        }
+    } else {
+        // Handle negative numbers using two's complement
+        
+        // Step 1: Convert absolute value to binary
+        unsigned int value = -decimal; // Get absolute value
+        for(int i = bits-1; i >= 0; i--) {
+            binary[i] = (value & 1) + '0';
+            value >>= 1;
+        }
+        
+        // Step 2: Flip all bits
+        for(int i = 0; i < bits; i++) {
+            binary[i] = (binary[i] == '0') ? '1' : '0';
+        }
+        
+        // Step 3: Add 1 to complete two's complement
+        int carry = 1;
+        for(int i = bits-1; i >= 0; i--) {
+            if (binary[i] == '1' && carry == 1) {
+                binary[i] = '0';
+            } else if (binary[i] == '0' && carry == 1) {
+                binary[i] = '1';
+                carry = 0;
+            }
+        }
+    }
 }
 
 int binaryToDecimal(int *binary) {
-    int decimal = 0;
-    for (int i = 0; i < 32; i++) {
-        decimal = (decimal << 1) + binary[i];
+    // Check if negative (first bit is 1)
+    int isNegative = binary[0];
+    
+    if (!isNegative) {
+        // Handle positive numbers directly
+        int result = 0;
+        for (int i = 0; i < 32; i++) {
+            result = (result << 1) | binary[i];
+        }
+        return result;
+    } else {
+        // Handle negative numbers using two's complement
+        
+        // Step 1: Flip all bits
+        int temp[32];
+        for (int i = 0; i < 32; i++) {
+            temp[i] = binary[i] ? 0 : 1;
+        }
+        
+        // Step 2: Add 1
+        int carry = 1;
+        for (int i = 31; i >= 0; i--) {
+            if (temp[i] == 1 && carry == 1) {
+                temp[i] = 0;
+            } else if (temp[i] == 0 && carry == 1) {
+                temp[i] = 1;
+                carry = 0;
+            }
+        }
+        
+        // Step 3: Convert to decimal and make negative
+        int result = 0;
+        for (int i = 0; i < 32; i++) {
+            result = (result << 1) | temp[i];
+        }
+        return -result;
     }
-    return decimal;
 }
 
 // Parse register number from string (e.g., "R1" -> 1)
@@ -277,21 +343,19 @@ void WriteBack() {
             printf("\n");
             break;
         case 3:{ // MOVI
-        // Convert decimal value to binary array
-            int valueB[32];
-            for (int i = 31; i >= 0; i--) {
-                valueB[i] = (value >> (31 - i)) & 1;
-            }
+            char binary[33];
+            decimalToBinary(value, binary, 32);
             for (int i = 0; i < 32; i++) {
-            R_source1[i] = valueB[i];
+            R_source1[i] = binary[i] - '0';
             }
             printf("Register R_source1: ");
             for (int i = 0; i < 32; i++) {
-                printf("%d", R_source1[i]);
+            printf("%d", R_source1[i]);
             }
             printf("\n");
-        }
             break;
+        }
+            
         case 4: // JEQ
             // for(int i = 0; i < 32; i++) {
             //     PC[i] = WB.result[i];}
